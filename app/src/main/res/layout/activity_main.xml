@@ -13,4 +13,12 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
+    <android.support.design.widget.FloatingActionButton
+        android:layout_margin="12dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/logout"
+        android:onClick="onClickFabLogout"
+        android:layout_gravity="right|top"/>
+
 </android.support.design.widget.CoordinatorLayout>

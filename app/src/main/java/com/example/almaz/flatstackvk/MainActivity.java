@@ -39,9 +39,12 @@ import java.util.HashMap;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
+
+    private boolean isResumed = false;
+
     private static final String TAG = "MainActivity";
     private static final String ACCESS_TOKEN = "ACCESS_TOKEN";
-    private String[] mScope = new String[]{
+    private final String[] mScope = new String[]{
             VKScope.FRIENDS,
             VKScope.WALL,
             VKScope.GROUPS,
@@ -57,9 +60,37 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        GsonBuilder builder =new GsonBuilder();
+        GsonBuilder builder = new GsonBuilder();
         mGson = builder.create();;
 
+        VKSdk.wakeUpSession(this, new VKCallback<VKSdk.LoginState>() {
+            @Override
+            public void onResult(VKSdk.LoginState res) {
+                Log.d(TAG, res.name() + isResumed);
+
+                switch (res) {
+                    case LoggedOut:
+                        showLogin();
+                        break;
+                    case LoggedIn:
+                        break;
+                    case Pending:
+                        showLogin();
+                        break;
+                    case Unknown:
+                        showLogin();
+                        break;
+                }
+            }
+
+            @Override
+            public void onError(VKError error) {
+
+            }
+        });
+    }
+
+    private void showLogin(){
         VKSdk.login(this, mScope);
     }
 
@@ -172,5 +203,12 @@ public class MainActivity extends AppCompatActivity {
             }
         });
         return list;
+    }
+
+    public void onClickFabLogout(View view){
+        VKSdk.logout();
+        if (!VKSdk.isLoggedIn()) {
+            showLogin();
+        }
     }
 }

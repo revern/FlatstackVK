@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">FlatstackVK</string>
+    <integer name="com_vk_sdk_AppId">5612953</integer>
+</resources>

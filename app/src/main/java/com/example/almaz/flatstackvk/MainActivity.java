@@ -1,6 +1,7 @@
 package com.example.almaz.flatstackvk;
 
 import android.content.Intent;
+import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.DefaultItemAnimator;
@@ -38,7 +39,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity{
 
     private boolean isResumed = false;
 
@@ -52,6 +53,7 @@ public class MainActivity extends AppCompatActivity {
             VKScope.PHOTOS
     };
 
+    private SwipeRefreshLayout mSwipeRefreshLayout;
     private RecyclerView mNewsRcView;
     private Gson mGson;
 
@@ -60,6 +62,26 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        mSwipeRefreshLayout = (SwipeRefreshLayout) findViewById(R.id.swipe_refresh_layout_main);
+        mSwipeRefreshLayout.setRefreshing(false);
+        mSwipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
+            @Override
+            public void onRefresh() {
+                mSwipeRefreshLayout.setRefreshing(true);
+                Log.d("Response", "on refresh");
+                refreshNews();
+                mSwipeRefreshLayout.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        Log.d("Response", "on refresh run");
+                        refreshNews();
+                    }
+                }, 3000);
+            }
+        });
+        mSwipeRefreshLayout.setColorSchemeResources(R.color.vk_share_blue_color);
+
+        mNewsRcView = (RecyclerView) findViewById(R.id.rcv_news);
         GsonBuilder builder = new GsonBuilder();
         mGson = builder.create();;
 
@@ -100,26 +122,8 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onResult(VKAccessToken res) {
                 // User connected
-                mNewsRcView = (RecyclerView) findViewById(R.id.rcv_news);
 
-                VKRequest request =
-                        new VKRequest("newsfeed.get", VKParameters
-                                .from(VKApiConst.FILTERS, "post", VKApiConst.FIELDS, "text"));
-                request.executeWithListener(new VKRequest.VKRequestListener() {
-                    @Override
-                    public void onComplete(VKResponse response) {
-                        super.onComplete(response);
-                        Log.d("RESPONSE", response.responseString);
-
-                        GsonBuilder builder = new GsonBuilder();
-                        Gson gson = builder.create();
-
-                        PostsResponse postsResponse = gson
-                                .fromJson(response.responseString, PostsResponse.class);
-                        PostsResponse.Response.Item[] posts = postsResponse.response.items;
-                        updateAdapter(posts);
-                    }
-                });
+                refreshNews();
             }
 
             @Override
@@ -132,6 +136,27 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+
+    public void refreshNews(){
+        VKRequest request =
+                new VKRequest("newsfeed.get", VKParameters
+                        .from(VKApiConst.FILTERS, "post", VKApiConst.FIELDS, "text"));
+        request.executeWithListener(new VKRequest.VKRequestListener() {
+            @Override
+            public void onComplete(VKResponse response) {
+                super.onComplete(response);
+                Log.d("RESPONSE", response.responseString);
+
+                GsonBuilder builder = new GsonBuilder();
+                Gson gson = builder.create();
+
+                PostsResponse postsResponse = gson
+                        .fromJson(response.responseString, PostsResponse.class);
+                PostsResponse.Response.Item[] posts = postsResponse.response.items;
+                updateAdapter(posts);
+            }
+        });
+    }
 
     private void updateAdapter(PostsResponse.Response.Item[] posts){
         if(posts!=null) {
@@ -148,6 +173,7 @@ public class MainActivity extends AppCompatActivity {
             mNewsRcView.setAdapter(newsAdapter);
             mNewsRcView.setLayoutManager(layoutManager);
             mNewsRcView.setItemAnimator(itemAnimator);
+            mSwipeRefreshLayout.setRefreshing(false);
         }
     }
 
@@ -173,7 +199,8 @@ public class MainActivity extends AppCompatActivity {
         String groupsIDs = groups.values().toString()
                 .substring(1, groups.values().toString().length()-1);
 
-        VKRequest usersRequest = VKApi.users().get(VKParameters.from(VKApiConst.USER_IDS, usersIDs));
+        VKRequest usersRequest = VKApi.users()
+                .get(VKParameters.from(VKApiConst.USER_IDS, usersIDs));
         usersRequest.executeWithListener(new VKRequest.VKRequestListener() {
             @Override
             public void onComplete(VKResponse response) {
@@ -183,7 +210,8 @@ public class MainActivity extends AppCompatActivity {
                 List<Integer> keys = new ArrayList();
                 keys.addAll(users.keySet());
                 for(int i = 0; i < users.size(); i++){
-                    list.set(keys.get(i), usersResponse.responses[i].first_name + " " + usersResponse.responses[i].last_name);
+                    list.set(keys.get(i), usersResponse.responses[i].first_name + " "
+                            + usersResponse.responses[i].last_name);
                 }
             }
         });

@@ -111,10 +111,10 @@ public class NewsRecyclerViewAdapter extends
             });
         }
 
-        String dateString = new SimpleDateFormat("HH:mm:ss dd MMM yyyy")
-                .format(new Date(mRecords[position].date));
-        postDate.setText(dateString);
-        postText.setText(mRecords[position].text);
+        postDate.setText(takeFormattedDate(position));
+
+        postText.setText(takeCutText(position));
+
         String imageUrl = null;
         try {
             imageUrl = post.attachments[0].photo.photo_604;
@@ -136,6 +136,18 @@ public class NewsRecyclerViewAdapter extends
                 mContext.startActivity(intent);
             }
         });
+    }
+
+    private String takeFormattedDate(int position){
+        return new SimpleDateFormat("HH:mm:ss   dd MMM yyyy")
+                .format(new Date(mRecords[position].date*1000L));
+    }
+    private String takeCutText(int position){
+        String text = mRecords[position].text;
+        if(text.length()>500){
+            text = text.substring(0, 400) + "..." + "\n\n" + "read more...";
+        }
+        return text;
     }
 
     @Override

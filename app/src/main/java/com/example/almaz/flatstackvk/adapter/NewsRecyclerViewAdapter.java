@@ -4,7 +4,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.support.v7.widget.CardView;
 import android.support.v7.widget.RecyclerView;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -14,20 +13,13 @@ import android.widget.TextView;
 import com.bumptech.glide.Glide;
 import com.example.almaz.flatstackvk.PostActivity;
 import com.example.almaz.flatstackvk.R;
-import com.example.almaz.flatstackvk.model.GroupsResponse;
 import com.example.almaz.flatstackvk.model.PostsResponse;
-import com.example.almaz.flatstackvk.model.UsersResponse;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.vk.sdk.api.VKApi;
-import com.vk.sdk.api.VKApiConst;
-import com.vk.sdk.api.VKParameters;
-import com.vk.sdk.api.VKRequest;
-import com.vk.sdk.api.VKResponse;
-import com.vk.sdk.api.methods.VKApiGroups;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 
 /**
@@ -37,13 +29,20 @@ public class NewsRecyclerViewAdapter extends
         RecyclerView.Adapter<NewsRecyclerViewAdapter.ViewHolder>{
 
     private List<PostsResponse.Response.Item> mRecords;
-    private Context mContext;
+    private HashMap<Long, PostsResponse.Response.Group> mGroups = new HashMap<>();
+    private HashMap<Long, PostsResponse.Response.Profile> mProfiles = new HashMap<>();
+    Context mContext;
     private Gson mGson;
 
-    public NewsRecyclerViewAdapter(Context context, List<PostsResponse.Response.Item> records){
-        mRecords = records;
-        mContext = context;
+    public NewsRecyclerViewAdapter(Context context,
+                                   List<PostsResponse.Response.Item> records,
+                                   HashMap<Long, PostsResponse.Response.Group> groups,
+                                   HashMap<Long, PostsResponse.Response.Profile> profiles){
 
+        mContext = context;
+        mRecords = records;
+        mGroups = groups;
+        mProfiles = profiles;
         GsonBuilder builder = new GsonBuilder();
         mGson = builder.create();
     }
@@ -58,70 +57,18 @@ public class NewsRecyclerViewAdapter extends
     @Override
     public void onBindViewHolder(NewsRecyclerViewAdapter.ViewHolder holder, final int position) {
         final PostsResponse.Response.Item post = mRecords.get(position);
-        final CardView postContainer = holder.mPostContainer;
-        final ImageView postAuthorPhoto = holder.mAuthorPhoto;
-        final TextView postText = holder.mPostText;
-        final TextView postDate = holder.mPostDate;
-        final TextView postAuthorName = holder.mAuthorName;
-        final ImageView postImage = holder.mPostImage;
+        CardView postContainer = holder.mPostContainer;
+        ImageView postAuthorPhotoView = holder.mAuthorPhotoView;
+        TextView postTextView = holder.mPostTextView;
+        TextView postDateView = holder.mPostDateView;
+        TextView postAuthorNameView = holder.mAuthorNameView;
+        ImageView postImageView = holder.mPostImageView;
 
-        VKRequest request;
-        if(post.source_id>=0) {
-             request = VKApi.users()
-                     .get(VKParameters.from(VKApiConst.USER_ID, post.source_id,
-                             VKApiConst.FIELDS, "photo_50"));
-            request.executeWithListener(new VKRequest.VKRequestListener() {
-                @Override
-                public void onComplete(VKResponse response) {
-                    super.onComplete(response);
-                    Log.d("USER", response.responseString);
-                    UsersResponse usersResponse = mGson
-                            .fromJson(response.responseString, UsersResponse.class);
-                    postAuthorName.setText(usersResponse.responses[0].first_name + " "
-                            + usersResponse.responses[0].last_name);
-                    Glide.with(mContext)
-                            .load(usersResponse.responses[0].photo_50)
-                            .into(postAuthorPhoto);
+        setAuthorInfo(post, postAuthorNameView, postAuthorPhotoView);
+        postDateView.setText(takeFormattedDate(position));
+        postTextView.setText(takeCutText(position));
 
-                }
-            });
-
-        } else {
-            request = new VKApiGroups()
-                    .getById(VKParameters.from(VKApiConst.GROUP_ID, post.source_id*(-1)));
-            request.executeWithListener(new VKRequest.VKRequestListener() {
-                @Override
-                public void onComplete(VKResponse response) {
-                    super.onComplete(response);
-                    Log.d("USER", response.responseString);
-                    GroupsResponse groupsResponse = mGson
-                            .fromJson(response.responseString, GroupsResponse.class);
-                    postAuthorName.setText(groupsResponse.responses[0].name);
-                    Glide.with(mContext)
-                            .load(groupsResponse.responses[0].photo_50)
-                            .into(postAuthorPhoto);
-
-                }
-            });
-        }
-
-        postDate.setText(takeFormattedDate(position));
-
-        postText.setText(takeCutText(position));
-
-        String imageUrl = null;
-        try {
-            imageUrl = post.attachments[0].photo.photo_604;
-        }catch (NullPointerException e){
-            e.printStackTrace();
-        }
-        if(imageUrl!=null) {
-            Glide.with(mContext)
-                    .load(imageUrl)
-                    .placeholder(R.drawable.placeholder_vk)
-                    .into(postImage);
-        }
-        final String imageUrlExtra = imageUrl;
+        final String imageUrlExtra = setPostImageAndGetUrl(post, postImageView);;
         postContainer.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -133,6 +80,46 @@ public class NewsRecyclerViewAdapter extends
                 mContext.startActivity(intent);
             }
         });
+    }
+
+    private void setAuthorInfo(PostsResponse.Response.Item post,
+                                TextView authorNameView, ImageView authorPhotoView){
+        if (post.source_id < 0) {
+            PostsResponse.Response.Group group = mGroups.get(post.source_id * (-1));
+            authorNameView.setText(group.name);
+            Glide.with(mContext)
+                    .load(group.photo_50)
+                    .into(authorPhotoView);
+        } else {
+            PostsResponse.Response.Profile profile = mProfiles.get(post.source_id);
+            authorNameView.setText(profile.first_name + " " + profile.last_name);
+            Glide.with(mContext)
+                    .load(profile.photo_50)
+                    .into(authorPhotoView);
+        }
+    }
+
+    private String setPostImageAndGetUrl(PostsResponse.Response.Item post, ImageView imageView){
+        String imageUrl = null;
+
+        try {
+            imageUrl = post.attachments[0].photo.photo_604;
+        } catch (NullPointerException e) {
+            e.printStackTrace();
+        }
+        try {
+            imageUrl = post.attachments[0].doc.preview.photo.sizes[0].src;
+        } catch (NullPointerException e){
+            e.printStackTrace();
+        }
+
+        if(imageUrl!=null) {
+            Glide.with(mContext)
+                    .load(imageUrl)
+                    .placeholder(R.drawable.placeholder_vk)
+                    .into(imageView);
+        }
+        return imageUrl;
     }
 
     private String takeFormattedDate(int position){
@@ -154,20 +141,20 @@ public class NewsRecyclerViewAdapter extends
 
     class ViewHolder extends RecyclerView.ViewHolder {
         private CardView mPostContainer;
-        private ImageView mAuthorPhoto;
-        private TextView mAuthorName;
-        private TextView mPostDate;
-        private TextView mPostText;
-        private ImageView mPostImage;
+        private ImageView mAuthorPhotoView;
+        private TextView mAuthorNameView;
+        private TextView mPostDateView;
+        private TextView mPostTextView;
+        private ImageView mPostImageView;
         public ViewHolder(View itemView) {
             super(itemView);
             mContext = itemView.getContext();
             mPostContainer = (CardView) itemView.findViewById(R.id.news_cv);
-            mAuthorPhoto = (ImageView) itemView.findViewById(R.id.item_post_author_photo);
-            mAuthorName = (TextView) itemView.findViewById(R.id.item_post_author_name);
-            mPostDate = (TextView) itemView.findViewById(R.id.item_post_date);
-            mPostText = (TextView) itemView.findViewById(R.id.item_post_text);
-            mPostImage = (ImageView) itemView.findViewById(R.id.item_post_image);
+            mAuthorPhotoView = (ImageView) itemView.findViewById(R.id.item_post_author_photo);
+            mAuthorNameView = (TextView) itemView.findViewById(R.id.item_post_author_name);
+            mPostDateView = (TextView) itemView.findViewById(R.id.item_post_date);
+            mPostTextView = (TextView) itemView.findViewById(R.id.item_post_text);
+            mPostImageView = (ImageView) itemView.findViewById(R.id.item_post_image);
         }
     }
 }

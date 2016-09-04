@@ -12,16 +12,13 @@ import android.view.View;
 import android.widget.Toast;
 
 import com.example.almaz.flatstackvk.adapter.NewsRecyclerViewAdapter;
-import com.example.almaz.flatstackvk.model.GroupsResponse;
 import com.example.almaz.flatstackvk.model.PostsResponse;
-import com.example.almaz.flatstackvk.model.UsersResponse;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.vk.sdk.VKAccessToken;
 import com.vk.sdk.VKCallback;
 import com.vk.sdk.VKScope;
 import com.vk.sdk.VKSdk;
-import com.vk.sdk.api.VKApi;
 import com.vk.sdk.api.VKApiConst;
 import com.vk.sdk.api.VKError;
 import com.vk.sdk.api.VKParameters;
@@ -51,6 +48,8 @@ public class MainActivity extends AppCompatActivity
     private NewsRecyclerViewAdapter mNewsAdapter;
     private LinearLayoutManager mLayoutManager;
     private List<PostsResponse.Response.Item> mPosts = new ArrayList<>();
+    private HashMap<Long, PostsResponse.Response.Group> mGroups = new HashMap<>();
+    private HashMap<Long, PostsResponse.Response.Profile> mProfiles = new HashMap<>();
 
     private boolean isResumed = false;
     private boolean isLoading = false;
@@ -79,7 +78,7 @@ public class MainActivity extends AppCompatActivity
             @Override
             public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
                 super.onScrolled(recyclerView, dx, dy);
-                if(dy<0 && !isLoading
+                if(dy > 0 && !isLoading
                         && mLayoutManager.findFirstVisibleItemPosition()+15 > mPosts.size()){
                     isLoading = true;
                     loadMoreItems();
@@ -113,6 +112,7 @@ public class MainActivity extends AppCompatActivity
                 for(int i=0;i<posts.length;i++){
                     mPosts.add(posts[i]);
                 }
+                takeAuthors(postsResponse);
                 mNewsAdapter.notifyDataSetChanged();
             }
         });
@@ -163,7 +163,7 @@ public class MainActivity extends AppCompatActivity
             public void onError(VKError error) {
                 // Auth error, user not connected
                 Log.d(TAG, error.toString());
-                Toast.makeText(getApplicationContext(), "Login error", Toast.LENGTH_LONG).show();
+                finish();
             }
         })) {
             super.onActivityResult(requestCode, resultCode, data);
@@ -188,6 +188,9 @@ public class MainActivity extends AppCompatActivity
                 PostsResponse postsResponse = gson
                         .fromJson(response.responseString, PostsResponse.class);
                 PostsResponse.Response.Item[] posts = postsResponse.response.items;
+                mGroups.clear();
+                mProfiles.clear();
+                takeAuthors(postsResponse);
                 mPosts.clear();
                 for(int i=0;i<posts.length;i++){
                     mPosts.add(posts[i]);
@@ -200,12 +203,10 @@ public class MainActivity extends AppCompatActivity
 
     private void updateAdapter(){
         if(mPosts!=null) {
-            mNewsAdapter = new NewsRecyclerViewAdapter(getApplicationContext(), mPosts);
-            mLayoutManager =
-                    new LinearLayoutManager(
-                            getApplicationContext(),
-                            LinearLayoutManager.VERTICAL,
-                            false);
+            mNewsAdapter = new NewsRecyclerViewAdapter(getApplicationContext(),
+                    mPosts, mGroups, mProfiles);
+            mLayoutManager = new LinearLayoutManager(getApplicationContext(),
+                    LinearLayoutManager.VERTICAL, false);
             RecyclerView.ItemAnimator itemAnimator = new DefaultItemAnimator();
             mNewsRcView.setAdapter(mNewsAdapter);
             mNewsRcView.setLayoutManager(mLayoutManager);
@@ -214,60 +215,15 @@ public class MainActivity extends AppCompatActivity
         }
     }
 
-    private List<String> takeAuthors(PostsResponse.Response.Item[] posts){
-        final HashMap<Integer,Long> users = new HashMap();
-        final HashMap<Integer,Long> groups = new HashMap();
+    private void takeAuthors(PostsResponse postsResponse){
 
-        final List<String> list = new ArrayList<String>();
-        for(int i = 0; i < posts.length; i++){
-            list.add(" ");
-        }
-        for(int i = 0; i < posts.length; i++){
-            if(posts[i].source_id>=0){
-                users.put(i, posts[i].source_id);
-            } else {
-                groups.put(i, posts[i].source_id * (-1));
-            }
+        for(PostsResponse.Response.Group group : postsResponse.response.groups){
+            mGroups.put(group.id, group);
         }
 
-        String usersIDs = users.values().toString()
-                .substring(1, users.values().toString().length()-1);
-
-        String groupsIDs = groups.values().toString()
-                .substring(1, groups.values().toString().length()-1);
-
-        VKRequest usersRequest = VKApi.users()
-                .get(VKParameters.from(VKApiConst.USER_IDS, usersIDs));
-        usersRequest.executeWithListener(new VKRequest.VKRequestListener() {
-            @Override
-            public void onComplete(VKResponse response) {
-                super.onComplete(response);
-                UsersResponse usersResponse = mGson
-                        .fromJson(response.responseString, UsersResponse.class);
-                List<Integer> keys = new ArrayList();
-                keys.addAll(users.keySet());
-                for(int i = 0; i < users.size(); i++){
-                    list.set(keys.get(i), usersResponse.responses[i].first_name + " "
-                            + usersResponse.responses[i].last_name);
-                }
-            }
-        });
-
-        VKRequest groupsRequest = VKApi.users().get(VKParameters.from("group_ids", groupsIDs));
-        groupsRequest.executeWithListener(new VKRequest.VKRequestListener() {
-            @Override
-            public void onComplete(VKResponse response) {
-                super.onComplete(response);
-                GroupsResponse groupsResponse = mGson
-                        .fromJson(response.responseString, GroupsResponse.class);
-                List<Integer> keys = new ArrayList();
-                keys.addAll(groups.keySet());
-                for(int i = 0; i < groups.size(); i++){
-                    list.set(keys.get(i), groupsResponse.responses[i].name);
-                }
-            }
-        });
-        return list;
+        for(PostsResponse.Response.Profile profile : postsResponse.response.profiles){
+            mProfiles.put(profile.id, profile);
+        }
     }
 
     public void onClickFabLogout(View view){

@@ -69,6 +69,9 @@ public class PostsResponse {
                 @SerializedName("photo")
                 public Photo photo;
 
+                @SerializedName("doc")
+                public Doc doc;
+
                 public static class Photo{
                     @SerializedName("photo_75")
                     public String photo_75;
@@ -85,15 +88,66 @@ public class PostsResponse {
                     @SerializedName("photo_2560")
                     public String photo_2560;
                 }
+
+                public class Doc{
+
+                    @SerializedName("ext")
+                    public String ext;
+
+                    @SerializedName("url")
+                    public String url;
+
+                    @SerializedName("preview")
+                    public Preview preview;
+
+                    public class Preview{
+
+                        @SerializedName("photo")
+                        public Photo photo;
+
+                        public class Photo{
+
+                            @SerializedName("size")
+                            public Size[] sizes;
+
+                            public class Size{
+
+                                @SerializedName("src")
+                                public String src;
+                            }
+                        }
+                    }
+                }
             }
+
+            @SerializedName("copy_history")
+            public Item[] copy_history;
         }
 
         public static class Profile{
+            @SerializedName("id")
+            public long id;
 
+            @SerializedName("first_name")
+            public String first_name;
+
+            @SerializedName("last_name")
+            public String last_name;
+
+            @SerializedName("photo_50")
+            public String photo_50;
         }
 
         public static class Group{
 
+            @SerializedName("id")
+            public long id;
+
+            @SerializedName("name")
+            public String name;
+
+            @SerializedName("photo_50")
+            public String photo_50;
         }
     }
 }

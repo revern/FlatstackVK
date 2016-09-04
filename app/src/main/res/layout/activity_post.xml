@@ -17,6 +17,7 @@
             android:id="@+id/post_text"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_margin="8dp"
             android:textSize="16dp"/>
 
         <ImageView
@@ -29,12 +30,14 @@
             android:id="@+id/post_likes_count"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_margin="8dp"
             android:layout_below="@+id/post_image"/>
 
         <TextView
             android:id="@+id/post_reposts_count"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_margin="8dp"
             android:layout_below="@+id/post_image"
             android:layout_alignParentRight="true"/>
 

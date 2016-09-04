@@ -18,30 +18,22 @@ import com.example.almaz.flatstackvk.model.UsersResponse;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.vk.sdk.VKAccessToken;
-import com.vk.sdk.VKAccessTokenTracker;
 import com.vk.sdk.VKCallback;
 import com.vk.sdk.VKScope;
 import com.vk.sdk.VKSdk;
-import com.vk.sdk.VKUIHelper;
 import com.vk.sdk.api.VKApi;
 import com.vk.sdk.api.VKApiConst;
 import com.vk.sdk.api.VKError;
 import com.vk.sdk.api.VKParameters;
 import com.vk.sdk.api.VKRequest;
 import com.vk.sdk.api.VKResponse;
-import com.vk.sdk.api.methods.VKApiGroups;
-import com.vk.sdk.api.model.VKApiApplicationContent;
-import com.vk.sdk.api.model.VKList;
-import com.vk.sdk.api.model.VKPostArray;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity{
-
-    private boolean isResumed = false;
+public class MainActivity extends AppCompatActivity
+        implements SwipeRefreshLayout.OnRefreshListener {
 
     private static final String TAG = "MainActivity";
     private static final String ACCESS_TOKEN = "ACCESS_TOKEN";
@@ -56,6 +48,13 @@ public class MainActivity extends AppCompatActivity{
     private SwipeRefreshLayout mSwipeRefreshLayout;
     private RecyclerView mNewsRcView;
     private Gson mGson;
+    private NewsRecyclerViewAdapter mNewsAdapter;
+    private LinearLayoutManager mLayoutManager;
+    private List<PostsResponse.Response.Item> mPosts = new ArrayList<>();
+
+    private boolean isResumed = false;
+    private boolean isLoading = false;
+    private String lastPostInfo;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,32 +63,66 @@ public class MainActivity extends AppCompatActivity{
 
         mSwipeRefreshLayout = (SwipeRefreshLayout) findViewById(R.id.swipe_refresh_layout_main);
         mSwipeRefreshLayout.setRefreshing(false);
-        mSwipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
-            @Override
-            public void onRefresh() {
-                mSwipeRefreshLayout.setRefreshing(true);
-                Log.d("Response", "on refresh");
-                refreshNews();
-                mSwipeRefreshLayout.postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        Log.d("Response", "on refresh run");
-                        refreshNews();
-                    }
-                }, 3000);
-            }
-        });
+        mSwipeRefreshLayout.setOnRefreshListener(this);
         mSwipeRefreshLayout.setColorSchemeResources(R.color.vk_share_blue_color);
 
         mNewsRcView = (RecyclerView) findViewById(R.id.rcv_news);
+        mNewsRcView.addOnScrollListener(takeScrollListener());
+
+        initializeVKSdk();
         GsonBuilder builder = new GsonBuilder();
         mGson = builder.create();;
+    }
 
+    private RecyclerView.OnScrollListener takeScrollListener(){
+        return new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
+                super.onScrolled(recyclerView, dx, dy);
+                if(dy<0 && !isLoading
+                        && mLayoutManager.findFirstVisibleItemPosition()+15 > mPosts.size()){
+                    isLoading = true;
+                    loadMoreItems();
+                }
+            }
+        };
+    }
+
+    private void loadMoreItems(){
+        VKRequest request =
+                new VKRequest("newsfeed.get", VKParameters.from(
+                        VKApiConst.FILTERS, "post",
+                        "start_from", lastPostInfo,
+                        VKApiConst.COUNT, 20,
+                        VKApiConst.FIELDS, "text"));
+
+        request.executeWithListener(new VKRequest.VKRequestListener() {
+            @Override
+            public void onComplete(VKResponse response) {
+                super.onComplete(response);
+                Log.d(TAG, "loadMoreItems response- " + response.responseString);
+
+                GsonBuilder builder = new GsonBuilder();
+                Gson gson = builder.create();
+
+                PostsResponse postsResponse = gson
+                        .fromJson(response.responseString, PostsResponse.class);
+                PostsResponse.Response.Item[] posts = postsResponse.response.items;
+                lastPostInfo = postsResponse.response.next_from;
+                isLoading=false;
+                for(int i=0;i<posts.length;i++){
+                    mPosts.add(posts[i]);
+                }
+                mNewsAdapter.notifyDataSetChanged();
+            }
+        });
+    }
+
+    private void initializeVKSdk(){
         VKSdk.wakeUpSession(this, new VKCallback<VKSdk.LoginState>() {
             @Override
             public void onResult(VKSdk.LoginState res) {
                 Log.d(TAG, res.name() + isResumed);
-
                 switch (res) {
                     case LoggedOut:
                         showLogin();
@@ -107,7 +140,8 @@ public class MainActivity extends AppCompatActivity{
 
             @Override
             public void onError(VKError error) {
-
+                Toast.makeText(getApplicationContext(), "Wake up error", Toast.LENGTH_LONG).show();
+                Log.d(TAG, error.toString());
             }
         });
     }
@@ -122,30 +156,31 @@ public class MainActivity extends AppCompatActivity{
             @Override
             public void onResult(VKAccessToken res) {
                 // User connected
-
                 refreshNews();
             }
 
             @Override
             public void onError(VKError error) {
                 // Auth error, user not connected
-                Toast.makeText(getApplicationContext(), "Error", Toast.LENGTH_LONG).show();
+                Log.d(TAG, error.toString());
+                Toast.makeText(getApplicationContext(), "Login error", Toast.LENGTH_LONG).show();
             }
         })) {
             super.onActivityResult(requestCode, resultCode, data);
         }
     }
 
-
     public void refreshNews(){
         VKRequest request =
-                new VKRequest("newsfeed.get", VKParameters
-                        .from(VKApiConst.FILTERS, "post", VKApiConst.FIELDS, "text"));
+                new VKRequest("newsfeed.get", VKParameters.from(
+                        VKApiConst.FILTERS, "post",
+                        VKApiConst.FIELDS, "text"));
+
         request.executeWithListener(new VKRequest.VKRequestListener() {
             @Override
             public void onComplete(VKResponse response) {
                 super.onComplete(response);
-                Log.d("RESPONSE", response.responseString);
+                Log.d(TAG, "refreshNews response - " + response.responseString);
 
                 GsonBuilder builder = new GsonBuilder();
                 Gson gson = builder.create();
@@ -153,25 +188,27 @@ public class MainActivity extends AppCompatActivity{
                 PostsResponse postsResponse = gson
                         .fromJson(response.responseString, PostsResponse.class);
                 PostsResponse.Response.Item[] posts = postsResponse.response.items;
-                updateAdapter(posts);
+                mPosts.clear();
+                for(int i=0;i<posts.length;i++){
+                    mPosts.add(posts[i]);
+                }
+                lastPostInfo = postsResponse.response.next_from;
+                updateAdapter();
             }
         });
     }
 
-    private void updateAdapter(PostsResponse.Response.Item[] posts){
-        if(posts!=null) {
-            NewsRecyclerViewAdapter newsAdapter =
-                    new NewsRecyclerViewAdapter(
-                            getApplicationContext(),
-                            posts);
-            LinearLayoutManager layoutManager =
+    private void updateAdapter(){
+        if(mPosts!=null) {
+            mNewsAdapter = new NewsRecyclerViewAdapter(getApplicationContext(), mPosts);
+            mLayoutManager =
                     new LinearLayoutManager(
                             getApplicationContext(),
                             LinearLayoutManager.VERTICAL,
                             false);
             RecyclerView.ItemAnimator itemAnimator = new DefaultItemAnimator();
-            mNewsRcView.setAdapter(newsAdapter);
-            mNewsRcView.setLayoutManager(layoutManager);
+            mNewsRcView.setAdapter(mNewsAdapter);
+            mNewsRcView.setLayoutManager(mLayoutManager);
             mNewsRcView.setItemAnimator(itemAnimator);
             mSwipeRefreshLayout.setRefreshing(false);
         }
@@ -238,5 +275,19 @@ public class MainActivity extends AppCompatActivity{
         if (!VKSdk.isLoggedIn()) {
             showLogin();
         }
+    }
+
+    @Override
+    public void onRefresh() {
+        mSwipeRefreshLayout.setRefreshing(true);
+        Log.d(TAG, "on refresh");
+        refreshNews();
+        mSwipeRefreshLayout.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                Log.d("Response", "on refresh run");
+                refreshNews();
+            }
+        }, 3000);
     }
 }

@@ -21,18 +21,12 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.vk.sdk.api.VKApi;
 import com.vk.sdk.api.VKApiConst;
-import com.vk.sdk.api.VKError;
 import com.vk.sdk.api.VKParameters;
 import com.vk.sdk.api.VKRequest;
 import com.vk.sdk.api.VKResponse;
 import com.vk.sdk.api.methods.VKApiGroups;
-import com.vk.sdk.api.model.VKApiPost;
-import com.vk.sdk.api.model.VKApiUser;
-import com.vk.sdk.api.model.VKList;
-import com.vk.sdk.api.model.VKPostArray;
 
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 
@@ -42,11 +36,11 @@ import java.util.List;
 public class NewsRecyclerViewAdapter extends
         RecyclerView.Adapter<NewsRecyclerViewAdapter.ViewHolder>{
 
-    private PostsResponse.Response.Item[] mRecords;
+    private List<PostsResponse.Response.Item> mRecords;
     private Context mContext;
     private Gson mGson;
 
-    public NewsRecyclerViewAdapter(Context context, PostsResponse.Response.Item[] records){
+    public NewsRecyclerViewAdapter(Context context, List<PostsResponse.Response.Item> records){
         mRecords = records;
         mContext = context;
 
@@ -63,7 +57,7 @@ public class NewsRecyclerViewAdapter extends
 
     @Override
     public void onBindViewHolder(NewsRecyclerViewAdapter.ViewHolder holder, final int position) {
-        final PostsResponse.Response.Item post = mRecords[position];
+        final PostsResponse.Response.Item post = mRecords.get(position);
         final CardView postContainer = holder.mPostContainer;
         final ImageView postAuthorPhoto = holder.mAuthorPhoto;
         final TextView postText = holder.mPostText;
@@ -122,7 +116,10 @@ public class NewsRecyclerViewAdapter extends
             e.printStackTrace();
         }
         if(imageUrl!=null) {
-            Glide.with(mContext).load(imageUrl).into(postImage);
+            Glide.with(mContext)
+                    .load(imageUrl)
+                    .placeholder(R.drawable.placeholder_vk)
+                    .into(postImage);
         }
         final String imageUrlExtra = imageUrl;
         postContainer.setOnClickListener(new View.OnClickListener() {
@@ -140,10 +137,10 @@ public class NewsRecyclerViewAdapter extends
 
     private String takeFormattedDate(int position){
         return new SimpleDateFormat("HH:mm:ss   dd MMM yyyy")
-                .format(new Date(mRecords[position].date*1000L));
+                .format(new Date(mRecords.get(position).date*1000L));
     }
     private String takeCutText(int position){
-        String text = mRecords[position].text;
+        String text = mRecords.get(position).text;
         if(text.length()>500){
             text = text.substring(0, 400) + "..." + "\n\n" + "read more...";
         }
@@ -152,7 +149,7 @@ public class NewsRecyclerViewAdapter extends
 
     @Override
     public int getItemCount() {
-        return mRecords.length;
+        return mRecords.size();
     }
 
     class ViewHolder extends RecyclerView.ViewHolder {

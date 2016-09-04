@@ -1,16 +1,11 @@
 package com.example.almaz.flatstackvk;
 
-import android.content.Intent;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.util.Log;
 import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.bumptech.glide.Glide;
-import com.example.almaz.flatstackvk.model.PostsResponse;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 
 public class PostActivity extends AppCompatActivity {
 

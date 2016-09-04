@@ -44,7 +44,7 @@
                 android:id="@+id/item_post_text"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
+                android:layout_margin="6dp"
                 android:textSize="16dp"
                 android:layout_below="@+id/item_post_author_photo"/>
 

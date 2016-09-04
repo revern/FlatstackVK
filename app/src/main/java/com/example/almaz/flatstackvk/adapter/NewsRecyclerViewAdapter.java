@@ -11,6 +11,7 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.example.almaz.flatstackvk.PostActivity;
 import com.example.almaz.flatstackvk.R;
 import com.example.almaz.flatstackvk.model.PostsResponse;
@@ -116,7 +117,6 @@ public class NewsRecyclerViewAdapter extends
         if(imageUrl!=null) {
             Glide.with(mContext)
                     .load(imageUrl)
-                    .placeholder(R.drawable.placeholder_vk)
                     .into(imageView);
         }
         return imageUrl;

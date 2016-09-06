@@ -15,8 +15,6 @@ import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.example.almaz.flatstackvk.PostActivity;
 import com.example.almaz.flatstackvk.R;
 import com.example.almaz.flatstackvk.model.PostsResponse;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -33,7 +31,6 @@ public class NewsRecyclerViewAdapter extends
     private HashMap<Long, PostsResponse.Response.Group> mGroups = new HashMap<>();
     private HashMap<Long, PostsResponse.Response.Profile> mProfiles = new HashMap<>();
     Context mContext;
-    private Gson mGson;
 
     public NewsRecyclerViewAdapter(Context context,
                                    List<PostsResponse.Response.Item> records,
@@ -44,8 +41,6 @@ public class NewsRecyclerViewAdapter extends
         mRecords = records;
         mGroups = groups;
         mProfiles = profiles;
-        GsonBuilder builder = new GsonBuilder();
-        mGson = builder.create();
     }
 
     @Override
@@ -113,10 +108,13 @@ public class NewsRecyclerViewAdapter extends
         } catch (NullPointerException e){
             e.printStackTrace();
         }
-
+        Glide.clear(imageView);
         if(imageUrl!=null) {
             Glide.with(mContext)
                     .load(imageUrl)
+                    .thumbnail(0.5f)
+                    .crossFade()
+                    .diskCacheStrategy(DiskCacheStrategy.ALL)
                     .into(imageView);
         }
         return imageUrl;

@@ -44,7 +44,7 @@ public class MainActivity extends AppCompatActivity
 
     private SwipeRefreshLayout mSwipeRefreshLayout;
     private RecyclerView mNewsRcView;
-    private Gson mGson;
+    private Gson mGson = new GsonBuilder().create();
     private NewsRecyclerViewAdapter mNewsAdapter;
     private LinearLayoutManager mLayoutManager;
     private List<PostsResponse.Response.Item> mPosts = new ArrayList<>();
@@ -69,10 +69,117 @@ public class MainActivity extends AppCompatActivity
         mNewsRcView.addOnScrollListener(takeScrollListener());
 
         initializeVKSdk();
-        GsonBuilder builder = new GsonBuilder();
-        mGson = builder.create();;
     }
 
+    //initialize vk
+    private void initializeVKSdk(){
+        VKSdk.wakeUpSession(this, new VKCallback<VKSdk.LoginState>() {
+            @Override
+            public void onResult(VKSdk.LoginState res) {
+                Log.d(TAG, res.name() + isResumed);
+                switch (res) {
+                    case LoggedOut:
+                        loginVKSdk();
+                        break;
+                    case LoggedIn:
+                        break;
+                    case Pending:
+                        loginVKSdk();
+                        break;
+                    case Unknown:
+                        loginVKSdk();
+                        break;
+                }
+            }
+
+            @Override
+            public void onError(VKError error) {
+                Toast.makeText(getApplicationContext(), "Wake up error", Toast.LENGTH_LONG).show();
+                Log.d(TAG, error.toString());
+            }
+        });
+    }
+
+    private void loginVKSdk(){
+        VKSdk.login(this, mScope);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (!VKSdk.onActivityResult(requestCode, resultCode, data, new VKCallback<VKAccessToken>() {
+            @Override
+            public void onResult(VKAccessToken res) {
+                // User connected
+                refreshNews();
+            }
+
+            @Override
+            public void onError(VKError error) {
+                // Auth error, user not connected
+                Log.d(TAG, error.toString());
+                finish();
+            }
+        })) {
+            super.onActivityResult(requestCode, resultCode, data);
+        }
+    }
+
+    //load first pack of news/posts
+    public void refreshNews(){
+        VKRequest request =
+                new VKRequest("newsfeed.get", VKParameters.from(
+                        VKApiConst.FILTERS, "post",
+                        VKApiConst.FIELDS, "text"));
+
+        request.executeWithListener(new VKRequest.VKRequestListener() {
+            @Override
+            public void onComplete(VKResponse response) {
+                super.onComplete(response);
+                Log.d(TAG, "refreshNews response - " + response.responseString);
+
+                PostsResponse postsResponse = mGson
+                        .fromJson(response.responseString, PostsResponse.class);
+                PostsResponse.Response.Item[] posts = postsResponse.response.items;
+                mGroups.clear();
+                mProfiles.clear();
+                takeAuthors(postsResponse);
+                mPosts.clear();
+                for(int i=0;i<posts.length;i++){
+                    mPosts.add(posts[i]);
+                }
+                lastPostInfo = postsResponse.response.next_from;
+                updateAdapter();
+            }
+        });
+    }
+
+    private void takeAuthors(PostsResponse postsResponse){
+
+        for(PostsResponse.Response.Group group : postsResponse.response.groups){
+            mGroups.put(group.id, group);
+        }
+
+        for(PostsResponse.Response.Profile profile : postsResponse.response.profiles){
+            mProfiles.put(profile.id, profile);
+        }
+    }
+
+    private void updateAdapter(){
+        if(mPosts!=null) {
+            mNewsAdapter = new NewsRecyclerViewAdapter(getApplicationContext(),
+                    mPosts, mGroups, mProfiles);
+            mLayoutManager = new LinearLayoutManager(getApplicationContext(),
+                    LinearLayoutManager.VERTICAL, false);
+            RecyclerView.ItemAnimator itemAnimator = new DefaultItemAnimator();
+            mNewsRcView.setAdapter(mNewsAdapter);
+            mNewsRcView.setLayoutManager(mLayoutManager);
+            mNewsRcView.setItemAnimator(itemAnimator);
+            mSwipeRefreshLayout.setRefreshing(false);
+        }
+    }
+
+
+    //pagination
     private RecyclerView.OnScrollListener takeScrollListener(){
         return new RecyclerView.OnScrollListener() {
             @Override
@@ -101,10 +208,7 @@ public class MainActivity extends AppCompatActivity
                 super.onComplete(response);
                 Log.d(TAG, "loadMoreItems response- " + response.responseString);
 
-                GsonBuilder builder = new GsonBuilder();
-                Gson gson = builder.create();
-
-                PostsResponse postsResponse = gson
+                PostsResponse postsResponse = mGson
                         .fromJson(response.responseString, PostsResponse.class);
                 PostsResponse.Response.Item[] posts = postsResponse.response.items;
                 lastPostInfo = postsResponse.response.next_from;
@@ -118,121 +222,7 @@ public class MainActivity extends AppCompatActivity
         });
     }
 
-    private void initializeVKSdk(){
-        VKSdk.wakeUpSession(this, new VKCallback<VKSdk.LoginState>() {
-            @Override
-            public void onResult(VKSdk.LoginState res) {
-                Log.d(TAG, res.name() + isResumed);
-                switch (res) {
-                    case LoggedOut:
-                        showLogin();
-                        break;
-                    case LoggedIn:
-                        break;
-                    case Pending:
-                        showLogin();
-                        break;
-                    case Unknown:
-                        showLogin();
-                        break;
-                }
-            }
-
-            @Override
-            public void onError(VKError error) {
-                Toast.makeText(getApplicationContext(), "Wake up error", Toast.LENGTH_LONG).show();
-                Log.d(TAG, error.toString());
-            }
-        });
-    }
-
-    private void showLogin(){
-        VKSdk.login(this, mScope);
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (!VKSdk.onActivityResult(requestCode, resultCode, data, new VKCallback<VKAccessToken>() {
-            @Override
-            public void onResult(VKAccessToken res) {
-                // User connected
-                refreshNews();
-            }
-
-            @Override
-            public void onError(VKError error) {
-                // Auth error, user not connected
-                Log.d(TAG, error.toString());
-                finish();
-            }
-        })) {
-            super.onActivityResult(requestCode, resultCode, data);
-        }
-    }
-
-    public void refreshNews(){
-        VKRequest request =
-                new VKRequest("newsfeed.get", VKParameters.from(
-                        VKApiConst.FILTERS, "post",
-                        VKApiConst.FIELDS, "text"));
-
-        request.executeWithListener(new VKRequest.VKRequestListener() {
-            @Override
-            public void onComplete(VKResponse response) {
-                super.onComplete(response);
-                Log.d(TAG, "refreshNews response - " + response.responseString);
-
-                GsonBuilder builder = new GsonBuilder();
-                Gson gson = builder.create();
-
-                PostsResponse postsResponse = gson
-                        .fromJson(response.responseString, PostsResponse.class);
-                PostsResponse.Response.Item[] posts = postsResponse.response.items;
-                mGroups.clear();
-                mProfiles.clear();
-                takeAuthors(postsResponse);
-                mPosts.clear();
-                for(int i=0;i<posts.length;i++){
-                    mPosts.add(posts[i]);
-                }
-                lastPostInfo = postsResponse.response.next_from;
-                updateAdapter();
-            }
-        });
-    }
-
-    private void updateAdapter(){
-        if(mPosts!=null) {
-            mNewsAdapter = new NewsRecyclerViewAdapter(getApplicationContext(),
-                    mPosts, mGroups, mProfiles);
-            mLayoutManager = new LinearLayoutManager(getApplicationContext(),
-                    LinearLayoutManager.VERTICAL, false);
-            RecyclerView.ItemAnimator itemAnimator = new DefaultItemAnimator();
-            mNewsRcView.setAdapter(mNewsAdapter);
-            mNewsRcView.setLayoutManager(mLayoutManager);
-            mNewsRcView.setItemAnimator(itemAnimator);
-            mSwipeRefreshLayout.setRefreshing(false);
-        }
-    }
-
-    private void takeAuthors(PostsResponse postsResponse){
-
-        for(PostsResponse.Response.Group group : postsResponse.response.groups){
-            mGroups.put(group.id, group);
-        }
-
-        for(PostsResponse.Response.Profile profile : postsResponse.response.profiles){
-            mProfiles.put(profile.id, profile);
-        }
-    }
-
-    public void onClickFabLogout(View view){
-        VKSdk.logout();
-        if (!VKSdk.isLoggedIn()) {
-            showLogin();
-        }
-    }
-
+    //pull to refresh
     @Override
     public void onRefresh() {
         mSwipeRefreshLayout.setRefreshing(true);
@@ -241,9 +231,17 @@ public class MainActivity extends AppCompatActivity
         mSwipeRefreshLayout.postDelayed(new Runnable() {
             @Override
             public void run() {
-                Log.d("Response", "on refresh run");
+                Log.d(TAG, "on refresh run");
                 refreshNews();
             }
         }, 3000);
+    }
+
+    //logout
+    public void onClickFabLogout(View view){
+        VKSdk.logout();
+        if (!VKSdk.isLoggedIn()) {
+            loginVKSdk();
+        }
     }
 }

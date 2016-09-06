@@ -11,6 +11,7 @@ import com.vk.sdk.VKSdk;
  */
 public class Application extends android.app.Application {
 
+    public static final String VK_ACCESS_TOKEN = "VK_ACCESS_TOKEN";
     VKAccessToken accessToken;
     VKAccessTokenTracker vkAccessTokenTracker = new VKAccessTokenTracker() {
         @Override
@@ -27,7 +28,7 @@ public class Application extends android.app.Application {
     @Override
     public void onCreate() {
         super.onCreate();
-        accessToken=VKAccessToken.tokenFromSharedPreferences(this,"VK_ACCESS_TOKEN");
+        accessToken=VKAccessToken.tokenFromSharedPreferences(this, VK_ACCESS_TOKEN);
         vkAccessTokenTracker.startTracking();
         VKSdk.initialize(this);
     }

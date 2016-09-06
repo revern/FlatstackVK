@@ -47,8 +47,7 @@ public class PostActivity extends AppCompatActivity {
 
     private void updateViews(){
         mPostView.setText(mPostText);
-        Glide
-                .with(this)
+        Glide.with(this)
                 .load(mPostImageUrl)
                 .into(mPostImage);
         mLikesView.setText("Likes: " + mPostLikesCount);

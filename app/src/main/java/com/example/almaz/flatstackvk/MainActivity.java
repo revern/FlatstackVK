@@ -33,7 +33,6 @@ public class MainActivity extends AppCompatActivity
         implements SwipeRefreshLayout.OnRefreshListener {
 
     private static final String TAG = "MainActivity";
-    private static final String ACCESS_TOKEN = "ACCESS_TOKEN";
     private final String[] mScope = new String[]{
             VKScope.FRIENDS,
             VKScope.WALL,
@@ -60,12 +59,14 @@ public class MainActivity extends AppCompatActivity
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        //pull to refresh
         mSwipeRefreshLayout = (SwipeRefreshLayout) findViewById(R.id.swipe_refresh_layout_main);
         mSwipeRefreshLayout.setRefreshing(false);
         mSwipeRefreshLayout.setOnRefreshListener(this);
         mSwipeRefreshLayout.setColorSchemeResources(R.color.vk_share_blue_color);
 
         mNewsRcView = (RecyclerView) findViewById(R.id.rcv_news);
+        //pagination
         mNewsRcView.addOnScrollListener(takeScrollListener());
 
         initializeVKSdk();
@@ -148,7 +149,7 @@ public class MainActivity extends AppCompatActivity
                     mPosts.add(posts[i]);
                 }
                 lastPostInfo = postsResponse.response.next_from;
-                updateAdapter();
+                refreshAdapter();
             }
         });
     }
@@ -164,7 +165,7 @@ public class MainActivity extends AppCompatActivity
         }
     }
 
-    private void updateAdapter(){
+    private void refreshAdapter(){
         if(mPosts!=null) {
             mNewsAdapter = new NewsRecyclerViewAdapter(getApplicationContext(),
                     mPosts, mGroups, mProfiles);

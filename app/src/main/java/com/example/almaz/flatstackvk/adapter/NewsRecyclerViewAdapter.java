@@ -2,6 +2,8 @@ package com.example.almaz.flatstackvk.adapter;
 
 import android.content.Context;
 import android.content.Intent;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.support.v7.widget.CardView;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
@@ -60,9 +62,9 @@ public class NewsRecyclerViewAdapter extends
         TextView postAuthorNameView = holder.mAuthorNameView;
         ImageView postImageView = holder.mPostImageView;
 
-        setAuthorInfo(post, postAuthorNameView, postAuthorPhotoView);
-        postDateView.setText(takeFormattedDate(position));
-        postTextView.setText(takeCutText(position));
+        setAuthorInfo(post.source_id, postAuthorNameView, postAuthorPhotoView);
+        postDateView.setText(takeFormattedDate(post.date));
+        postTextView.setText(takeCutText(post.text));
 
         final String imageUrlExtra = setPostImageAndGetUrl(post, postImageView);;
         postContainer.setOnClickListener(new View.OnClickListener() {
@@ -78,26 +80,34 @@ public class NewsRecyclerViewAdapter extends
         });
     }
 
-    private void setAuthorInfo(PostsResponse.Response.Item post,
-                                TextView authorNameView, ImageView authorPhotoView){
-        if (post.source_id < 0) {
-            PostsResponse.Response.Group group = mGroups.get(post.source_id * (-1));
+    public void setAuthorInfo(@NonNull long source_id,
+                              @NonNull TextView authorNameView,
+                              @NonNull ImageView authorPhotoView){
+        if (source_id < 0) {
+            //if author is group
+            PostsResponse.Response.Group group = mGroups.get(source_id * (-1));
             authorNameView.setText(group.name);
-            Glide.with(mContext)
-                    .load(group.photo_50)
-                    .into(authorPhotoView);
+            drawAuthorImage(group.photo_50, authorPhotoView);
         } else {
-            PostsResponse.Response.Profile profile = mProfiles.get(post.source_id);
+            //if author is user
+            PostsResponse.Response.Profile profile = mProfiles.get(source_id);
             authorNameView.setText(profile.first_name + " " + profile.last_name);
-            Glide.with(mContext)
-                    .load(profile.photo_50)
-                    .into(authorPhotoView);
+            drawAuthorImage(profile.photo_50, authorPhotoView);
         }
     }
 
-    private String setPostImageAndGetUrl(PostsResponse.Response.Item post, ImageView imageView){
+    private void drawAuthorImage(@NonNull String url,@NonNull ImageView imageView){
+        Glide.with(mContext)
+                .load(url)
+                .into(imageView);
+    }
+
+    @Nullable
+    private String setPostImageAndGetUrl(@NonNull PostsResponse.Response.Item post,
+                                         @NonNull ImageView imageView){
         String imageUrl = null;
 
+        //try to get post image url
         try {
             imageUrl = post.attachments[0].photo.photo_604;
         } catch (NullPointerException e) {
@@ -109,6 +119,7 @@ public class NewsRecyclerViewAdapter extends
             e.printStackTrace();
         }
         Glide.clear(imageView);
+        //draw post image
         if(imageUrl!=null) {
             Glide.with(mContext)
                     .load(imageUrl)
@@ -120,12 +131,15 @@ public class NewsRecyclerViewAdapter extends
         return imageUrl;
     }
 
-    private String takeFormattedDate(int position){
-        return new SimpleDateFormat("HH:mm:ss   dd MMM yyyy")
-                .format(new Date(mRecords.get(position).date*1000L));
+    @NonNull
+    public String takeFormattedDate(@NonNull long date){
+        return new SimpleDateFormat("HH:mm   dd MMM yyyy")
+                .format(new Date(date*1000L));
     }
-    private String takeCutText(int position){
-        String text = mRecords.get(position).text;
+
+    @NonNull
+    public String takeCutText(@NonNull String text){
+        //cut text if it's so long
         if(text.length()>500){
             text = text.substring(0, 400) + "..." + "\n\n" + "read more...";
         }
